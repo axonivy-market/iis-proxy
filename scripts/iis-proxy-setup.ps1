@@ -95,7 +95,7 @@ function installISAPIRewrite {
   Remove-Item $output
 
   Write-Host "Configure ISAPI Rewrite"
-  Set-Content -Path 'C:\Program Files\Helicon\ISAPI_Rewrite3\httpd.conf' -Value 'RewriteHeader user: .* %{LOGON_USER}'
+  Set-Content -Path 'C:\Program Files\Helicon\ISAPI_Rewrite3\httpd.conf' -Value 'RewriteHeader RemoteUser: .* %{LOGON_USER}'
 }
 
 function enableBasicAuth {
