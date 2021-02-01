@@ -72,16 +72,23 @@ function installUrlRewriteRules {
 function enableSSO {
   Write-Host "Enable SSO" 
 
+  Write-Host "Disable Anonymous Authentication"
   $filterAnonymous = "system.webServer/security/authentication/anonymousAuthentication"  
   Set-WebConfigurationProperty -pspath $path -location $sitename  -filter $filterAnonymous -Name Enabled -Value False
 
+  Write-Host "Enable Windows Authentication"
   $filterWindows = "system.webServer/security/authentication/windowsAuthentication"
   Set-WebConfigurationProperty -pspath $path -location $sitename  -filter $filterWindows -Name Enabled -Value True
 
   $filter = "/system.webServer/security/authentication/windowsAuthentication/providers"
   Remove-WebConfigurationProperty -pspath $path -location $sitename -filter $filter -name "."
   Add-WebConfiguration -Force -pspath $path -location $sitename -filter $filter -Value NTLM
-  Add-WebConfiguration -Force -pspath $path -location $sitename -filter $filter -Value Negotiate  
+  Add-WebConfiguration -Force -pspath $path -location $sitename -filter $filter -Value Negotiate
+
+  # REST Clients will need to have basic authentication enabled
+  Write-Host "Enable Basic Authentication"
+  $filter = "system.webServer/security/authentication/basicAuthentication"
+  Set-WebConfigurationProperty -pspath $path -location $sitename -filter $filter -Name Enabled -Value True
 }
 
 function installISAPIRewrite {
@@ -96,12 +103,6 @@ function installISAPIRewrite {
 
   Write-Host "Configure ISAPI Rewrite"
   Set-Content -Path 'C:\Program Files\Helicon\ISAPI_Rewrite3\httpd.conf' -Value 'RewriteHeader X-Forwarded-User: .* %{LOGON_USER}'
-}
-
-function enableBasicAuth {
-  Write-Host "Enable Basic Authentication"
-  $filter = "system.webServer/security/authentication/basicAuthentication"
-  Set-WebConfigurationProperty -pspath $path -location $sitename -filter $filter -Name Enabled -Value True
 }
 
 function restartIIS {
@@ -139,14 +140,6 @@ $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
 if ($decision -eq 0) {
   enableSSO
   installISAPIRewrite
-}
-
-$title    = 'Setup Basic Authentication for REST Services'
-$question = 'Do you want to enable basic authentication for REST Services?'
-$choices  = '&Yes', '&No'
-$decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
-if ($decision -eq 0) {
-  enableBasicAuth
 }
 
 restartIIS
