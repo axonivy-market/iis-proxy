@@ -117,7 +117,7 @@ function restartIIS {
 $title    = 'IIS Setup'
 $question = 'Do you want to install IIS and its features?'
 $choices  = '&Yes', '&No'
-$decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+$decision = $Host.UI.PromptForChoice($title, $question, $choices, 0)
 if ($decision -eq 0) {
   enableIISFeatures
   installChoco
@@ -128,7 +128,7 @@ if ($decision -eq 0) {
 $title    = 'Rewrite Rule'
 $question = 'Do you want to install rewrite rule?'
 $choices  = '&Yes', '&No'
-$decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+$decision = $Host.UI.PromptForChoice($title, $question, $choices, 0)
 if ($decision -eq 0) {  
   installUrlRewriteRules
 }
