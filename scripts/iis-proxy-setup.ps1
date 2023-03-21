@@ -3,6 +3,8 @@ Set-ExecutionPolicy Bypass -Scope Process
 $sitename = "Default Web Site"
 $path = "iis:\sites"
 $site = "$path\$sitename"
+$filterName = "ivy-route-all"
+$filterRoot = "system.webServer/rewrite/rules/rule[@name='$filterName']"
 
 function enableIISFeatures() {
   Write-Host "Enable IIS Fetaures"
@@ -59,14 +61,19 @@ function installUrlRewriteRules {
   Write-Host "Install url rewrite rules for " -NoNewline
   Write-Host $ivyEngineUrl -ForegroundColor Green
 
-  $filterName = "ivy-route-all"
-  $filterRoot = "system.webServer/rewrite/rules/rule[@name='$filterName']"
   Clear-WebConfiguration -pspath $site -filter $filterRoot 
   Add-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/rules" -name "." -value @{name=$filterName;patternSyntax='Regular Expressions';stopProcessing='False'}
   Set-WebConfigurationProperty -pspath $site -filter "$filterRoot/match" -name "url" -value ".*"
   Set-WebConfigurationProperty -pspath $site -filter "$filterRoot/conditions" -name "logicalGrouping" -value "MatchAny"
   Set-WebConfigurationProperty -pspath $site -filter "$filterRoot/action" -name "type" -value "Rewrite"
   Set-WebConfigurationProperty -pspath $site -filter "$filterRoot/action" -name "url" -value "$ivyEngineUrl/{R:0}"
+}
+
+function terminateSSL {
+  Write-Host "Terminate SSL on IIS"
+  Write-Host "You need to manually enable HTTPS!"
+  Add-WebConfigurationProperty -pspath $site -filter "system.webserver/rewrite/allowedservervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto'}
+  Add-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto';value='https';replace='True'}
 }
 
 function enableSSO {
@@ -110,7 +117,6 @@ function restartIIS {
   IISReset /restart
 }
 
-
 ################
 # Guided Setup #
 ################
@@ -131,6 +137,14 @@ $choices  = '&Yes', '&No'
 $decision = $Host.UI.PromptForChoice($title, $question, $choices, 0)
 if ($decision -eq 0) {  
   installUrlRewriteRules
+}
+
+$title    = 'Terminate SSL on IIS'
+$question = 'Only if you use HTTPS from Browser to IIS! Do you want to terminate SSL on IIS to communicate from IIS to Axon Ivy Engine with HTTP instead of HTTPS?'
+$choices  = '&Yes', '&No'
+$decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+if ($decision -eq 0) {
+  terminateSSL
 }
 
 $title    = 'Setup SSO'
