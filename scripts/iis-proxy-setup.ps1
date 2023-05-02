@@ -36,7 +36,7 @@ function installUrlRewrite {
 
 function enableProxy {
   Write-Host "Enable Proxy"
-  $assembly = [System.Reflection.Assembly]::LoadFrom("$env:systemroot\system32\inetsrv\Microsoft.Web.Administration.dll")    
+  $assembly = [System.Reflection.Assembly]::LoadFrom("$env:systemroot\system32\inetsrv\Microsoft.Web.Administration.dll")
   $server = new-object Microsoft.Web.Administration.ServerManager
   $sectionGroupConfig = $server.GetApplicationHostConfiguration()
  
@@ -71,9 +71,10 @@ function installUrlRewriteRules {
 
 function terminateSSL {
   Write-Host "Terminate SSL on IIS"
-  Write-Host "You need to manually enable HTTPS!"
-  Add-WebConfigurationProperty -pspath $site -filter "system.webserver/rewrite/allowedservervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto'}
-  Add-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto';value='https';replace='True'}
+  Write-Host "You need to manually enable HTTPS!"  
+  unlockSystemWebServer
+  Set-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/allowedServerVariables" -name "." -value @{name='HTTP_X-Forwarded-Proto'}  
+  Set-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto';value='https';replace='True'}
 }
 
 function enableSSO {
@@ -115,6 +116,26 @@ function installISAPIRewrite {
 function restartIIS {
   Write-Host "Restart IIS"
   IISReset /restart
+}
+
+function unlockSystemWebServer {
+  Write-Host "Unlocking system.webServer section"
+  $assembly = [System.Reflection.Assembly]::LoadFrom("$env:systemroot\system32\inetsrv\Microsoft.Web.Administration.dll")
+  $mgr = new-object Microsoft.Web.Administration.ServerManager
+  $conf = $mgr.GetApplicationHostConfiguration()
+  unlockSectionGroup($conf.RootSectionGroup.SectionGroups["system.webServer"])
+  $mgr.CommitChanges()
+  Start-Sleep -Seconds 5
+  Write-Host "Unlocking system.webServer done"
+}
+
+function unlockSectionGroup($group) {
+  foreach ($subGroup in $group.SectionGroups) {
+    unlockSectionGroup($subGroup)
+  }
+  foreach ($section in $group.Sections) {
+    $section.OverrideModeDefault = "Allow"
+  }
 }
 
 ################
