@@ -15,6 +15,9 @@ function enableIISFeatures() {
   Enable-WindowsOptionalFeature -Online -FeatureName IIS-WindowsAuthentication
   Enable-WindowsOptionalFeature -Online -FeatureName IIS-BasicAuthentication
 
+  # required for process viewer
+  Install-WindowsFeature -name Web-WebSockets
+
   # required for isapi filter helicontech
   Enable-WindowsOptionalFeature -Online -FeatureName IIS-ISAPIExtensions
   Enable-WindowsOptionalFeature -Online -FeatureName IIS-ISAPIFilter
@@ -73,8 +76,24 @@ function terminateSSL {
   Write-Host "Terminate SSL on IIS"
   Write-Host "You need to manually enable HTTPS!"  
   unlockSystemWebServer
-  Set-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/allowedServerVariables" -name "." -value @{name='HTTP_X-Forwarded-Proto'}  
-  Set-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto';value='https';replace='True'}
+
+  Remove-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/allowedServerVariables" -name "." -AtElement @{name='HTTP_X-Forwarded-Proto'}
+  Add-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/allowedServerVariables" -name "." -value @{name='HTTP_X-Forwarded-Proto'}  
+
+  Remove-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -AtElement @{name='HTTP_X-Forwarded-Proto'}
+  Add-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -value @{name='HTTP_X-Forwarded-Proto';value='https';replace='True'}
+}
+
+function allowWebSocketCommunication {
+  Write-Host "Allow Web Socket communication over IIS"
+  unlockSystemWebServer
+  # IIS ARR Module can not negotiate websocket compression
+  # https://stackoverflow.com/questions/34316825/websockets-reverse-proxy-in-iis-8
+  Remove-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/allowedServerVariables" -name "." -AtElement @{name='HTTP_SEC_WEBSOCKET_EXTENSIONS'}
+  Add-WebConfigurationProperty -pspath $site -filter "system.webServer/rewrite/allowedServerVariables" -name "." -value @{name='HTTP_SEC_WEBSOCKET_EXTENSIONS'}
+
+  Remove-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -AtElement @{name='HTTP_SEC_WEBSOCKET_EXTENSIONS'}
+  Add-WebConfigurationProperty -pspath $site -filter "$filterRoot/servervariables" -name "." -value @{name='HTTP_SEC_WEBSOCKET_EXTENSIONS';value='';replace='True'}
 }
 
 function enableSSO {
@@ -158,6 +177,7 @@ $choices  = '&Yes', '&No'
 $decision = $Host.UI.PromptForChoice($title, $question, $choices, 0)
 if ($decision -eq 0) {  
   installUrlRewriteRules
+  allowWebSocketCommunication
 }
 
 $title    = 'Terminate SSL on IIS'
