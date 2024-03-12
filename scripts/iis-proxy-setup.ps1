@@ -114,6 +114,7 @@ function enableProxy {
   $section = $config.GetSection('system.webServer/' + $sectionName)
   $section.SetAttributeValue('enabled', $true);
   $section.SetAttributeValue('preserveHostHeader', 'True');
+  $section.SetAttributeValue('reverseRewriteHostInResponseHeaders', 'False');
   $server.CommitChanges();
 }
 
