@@ -112,7 +112,7 @@ function enableProxy {
  
   $config = $server.GetApplicationHostConfiguration()
   $section = $config.GetSection('system.webServer/' + $sectionName)
-  $section.SetAttributeValue('enabled', $true);
+  $section.SetAttributeValue('enabled', 'true');
   $section.SetAttributeValue('preserveHostHeader', 'True');
   $section.SetAttributeValue('reverseRewriteHostInResponseHeaders', 'False');
   $server.CommitChanges();
@@ -168,11 +168,11 @@ function enableSSO {
 
   Write-Information "- Disable Anonymous Authentication"
   $filterAnonymous = "system.webServer/security/authentication/anonymousAuthentication"  
-  Set-WebConfigurationProperty -pspath $path -location $sitename  -filter $filterAnonymous -Name Enabled -Value $true
+  Set-WebConfigurationProperty -pspath $path -location $sitename  -filter $filterAnonymous -Name Enabled -Value False
 
   Write-Information "- Enable Windows Authentication"
   $filterWindows = "system.webServer/security/authentication/windowsAuthentication"
-  Set-WebConfigurationProperty -pspath $path -location $sitename  -filter $filterWindows -Name Enabled -Value $true
+  Set-WebConfigurationProperty -pspath $path -location $sitename  -filter $filterWindows -Name Enabled -Value True
 
   # the Remove-WebConfigurationProperty inserts a <clean /> tag which removes all inherited settings.
   $filter = "/system.webServer/security/authentication/windowsAuthentication/providers"
@@ -183,7 +183,7 @@ function enableSSO {
   # REST Clients will need to have basic authentication enabled
   Write-Information "- Enable Basic Authentication"
   $filter = "system.webServer/security/authentication/basicAuthentication"
-  Set-WebConfigurationProperty -pspath $path -location $sitename -filter $filter -Name Enabled -Value $true
+  Set-WebConfigurationProperty -pspath $path -location $sitename -filter $filter -Name Enabled -Value True
 }
 
 # sets the currently logged in user in http header 'X-Forwarded-User'
@@ -348,15 +348,16 @@ Write-Information "*"
 
 if ($installIis) {
   enableIISFeatures
-  enableProxy
-}
-if ($urlRewrite) {  
   $ok = installModule "Application Request Router (ARR)" "requestRouter_amd64.msi" 
   $ok = $ok -and (installModule "URL Rewrite" "rewrite_amd64_en-US.msi")
   if (-not $ok) {
     Write-Error "Cannot install Application Request Router and/or URL Rewrite - aborting"
     exit 1
   }
+  enableProxy
+}
+
+if ($urlRewrite) {  
   installUrlRewriteRules
   allowWebSocketCommunication
   Write-Warning "Please change the standard search RE '.*' to allow only the contexts you want to be reachable from the outside"
