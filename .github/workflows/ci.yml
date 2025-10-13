@@ -29,8 +29,8 @@ jobs:
           IIS_MODULES_DOWNLOAD: 'true'  # force download of modules for CI
 
       - name: Upload logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: script-logs
           path: scripts/*.log
-      

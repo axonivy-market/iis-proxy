@@ -267,7 +267,6 @@ function downloadModules {
   $allOk = $allOk -and (downloadModule "URL Rewrite" "rewrite_amd64_en-US.msi" "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi")
   $allOk = $allOk -and (downloadModule "ISAPI Rewrite" "ISAPI_Rewrite3_0112_Lite_x64.msi" "https://www.helicontech.com/download/isapi_rewrite/ISAPI_Rewrite3_0112_Lite_x64.msi")
   if ( -not $allOk ) {
-    Write-Error ""
     Write-Error "Cannot download all modules. Please provide the missing files at ${modulePath}, or try again."
     throw "Module download error"
   }
@@ -296,7 +295,6 @@ function verifyModules {
     }
   }
   if ( $missing.Count -gt 0 ) {
-    Write-Error ""
     Write-Error "Please provide the missing files, or have the script download them."
     throw "Missing module files"
   }
