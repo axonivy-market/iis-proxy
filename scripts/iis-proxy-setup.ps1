@@ -278,52 +278,50 @@ function downloadModules {
     Write-Error "Cannot download all modules. Please provide the missing files at ${modulePath}, or try again."
     throw "Module download error"
   }
+  return $modulePath | Resolve-Path
 }
 
-function provideModules {
-  # download by script, or use customer's provided executables?
-  if ($null -eq $Host.UI) {
-    $downloadFromInternet = $true
-  } else {
-    $choices  = '&Yes', '&No'
-    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
+function verifyModules {
+  Do {
+    $modulePath = Read-Default "IIS Modules Source Path" "Enter the path to the IIS modules you have downloaded yourself" "$modulePath"
+  } Until ((Test-Path $modulePath -PathType Container))
+
+  $modulePath = $modulePath | Resolve-Path
+
+  Write-Information "ModulePath: '$modulePath'"
+  # check if files are available already - else display an instruction message and terminate.
+  $moduleFiles = (
+      "requestRouter_amd64.msi",
+      "rewrite_amd64_en-US.msi",
+      "ISAPI_Rewrite3_0112_Lite_x64.msi"
+  )
+  $missing=@()
+  foreach( $moduleFile in $moduleFiles) {
+    if ( ! (Test-Path -Path (Join-Path "$modulePath" "$moduleFile") -PathType Leaf)) {
+      Write-Error "${moduleFile} not found"
+      $missing += $moduleFile
+    }
   }
-
-  if ($downloadFromInternet) {
-    downloadModules
-  } else {  
-    # get path to module MSI files
-    Do {
-      $modulePath = Read-Default "IIS Modules Source Path" "Enter the path to the IIS modules you have downloaded yourself" "$modulePath"
-    } Until ((Test-Path $modulePath -PathType Container))
-
-    $modulePath = $modulePath | Resolve-Path
-
-    Write-Information "ModulePath: '$modulePath'"
-    # check if files are available already - else display an instruction message and terminate.
-    $moduleFiles = (
-        "requestRouter_amd64.msi",
-        "rewrite_amd64_en-US.msi",
-        "ISAPI_Rewrite3_0112_Lite_x64.msi"
-    )
-    $missing=@()
-    foreach( $moduleFile in $moduleFiles) {
-      if ( ! (Test-Path -Path (Join-Path "$modulePath" "$moduleFile") -PathType Leaf)) {
-        Write-Error "${moduleFile} not found"
-        $missing += $moduleFile
-      }
-    }
-    if ( $missing.Count -gt 0 ) {
-      Write-Error ""
-      Write-Error "Please provide the missing files, or have the script download them."
-      throw "Missing module files"
-    }
+  if ( $missing.Count -gt 0 ) {
+    Write-Error ""
+    Write-Error "Please provide the missing files, or have the script download them."
+    throw "Missing module files"
   }
   return $modulePath | Resolve-Path
 }
 
 try{
-  $modulePath = provideModules
+  # download by script, or use customer's provided executables?
+  if ($null -eq $Host.UI) {
+    $downloadFromInternet = $true
+  } else {
+    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
+  }
+  if ($downloadFromInternet) {
+    $modulePath = downloadModules
+  } else {   
+    $modulePath = verifyModules
+  }
   # if we get here, then all additional module installation files are available at $modulePath.
 } catch {
   Write-Error "**** aborting"
