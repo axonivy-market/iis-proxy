@@ -312,6 +312,7 @@ function verifyModules {
 
 try{
   # download by script, or use customer's provided executables?
+  Write-Information "HostUI: $Host.UI"
   if ($null -eq $Host.UI) {
     $downloadFromInternet = $true
   } else {
