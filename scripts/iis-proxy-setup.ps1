@@ -267,55 +267,74 @@ $choices  = '&Yes', '&No'
 # questions and checks 
 # --------------------
 
-# download by script, or use customer's provided executables?
-#
-$downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
 
-$allOk = $true
-
-if (! $downloadFromInternet) {  
-  # get path to module MSI files
-  Do {
-    $modulePath = Read-Default "IIS Modules Source Path" "Enter the path to the IIS modules you have downloaded yourself" "$modulePath"
-  } Until ((Test-Path $modulePath -PathType Container))
-
-  $modulePath = $modulePath | Resolve-Path
-
-  Write-Information "ModulePath: '$modulePath'"
-  # check if files are available already - else display an instruction message and terminate.
-  $moduleFiles = (
-      "requestRouter_amd64.msi",
-      "rewrite_amd64_en-US.msi",
-      "ISAPI_Rewrite3_0112_Lite_x64.msi"
-  )
-  foreach( $moduleFile in $moduleFiles) {
-      if ( ! (Test-Path -Path (Join-Path "$modulePath" "$moduleFile") -PathType Leaf)) {
-          $allOk = $false
-          Write-Error "${moduleFile} not found"
-      }
-  }
-  if ( ! $allOk ) {
-      Write-Error ""
-      Write-Error "Please provide the missing files, or have the script download them."
-      Write-Error "**** aborting"
-      exit 0
+function downloadModules {
+  $allOk = $true
+  $allOk = downloadModule "Application Request Router (ARR)" "requestRouter_amd64.msi" "https://download.microsoft.com/download/E/9/8/E9849D6A-020E-47E4-9FD0-A023E99B54EB/requestRouter_amd64.msi"
+  $allOk = $allOk -and (downloadModule "URL Rewrite" "rewrite_amd64_en-US.msi" "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi")
+  $allOk = $allOk -and (downloadModule "ISAPI Rewrite" "ISAPI_Rewrite3_0112_Lite_x64.msi" "https://www.helicontech.com/download/isapi_rewrite/ISAPI_Rewrite3_0112_Lite_x64.msi")
+  if ( -not $allOk ) {
+    Write-Error ""
+    Write-Error "Cannot download all modules. Please provide the missing files at ${modulePath}, or try again."
+    throw "Module download error"
   }
 }
-$modulePath = $modulePath | Resolve-Path
+
+function provideModules {
+  # download by script, or use customer's provided executables?
+  $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
+
+  if ($downloadFromInternet) {
+    downloadModules
+  } else {  
+    # get path to module MSI files
+    Do {
+      $modulePath = Read-Default "IIS Modules Source Path" "Enter the path to the IIS modules you have downloaded yourself" "$modulePath"
+    } Until ((Test-Path $modulePath -PathType Container))
+
+    $modulePath = $modulePath | Resolve-Path
+
+    Write-Information "ModulePath: '$modulePath'"
+    # check if files are available already - else display an instruction message and terminate.
+    $moduleFiles = (
+        "requestRouter_amd64.msi",
+        "rewrite_amd64_en-US.msi",
+        "ISAPI_Rewrite3_0112_Lite_x64.msi"
+    )
+    $missing=@()
+    foreach( $moduleFile in $moduleFiles) {
+      if ( ! (Test-Path -Path (Join-Path "$modulePath" "$moduleFile") -PathType Leaf)) {
+        Write-Error "${moduleFile} not found"
+        $missing += $moduleFile
+      }
+    }
+    if ( $missing.Count -gt 0 ) {
+      Write-Error ""
+      Write-Error "Please provide the missing files, or have the script download them."
+      throw "Missing module files"
+    }
+  }
+  return $modulePath | Resolve-Path
+}
+
+try{
+  $modulePath = provideModules
+  # if we get here, then all additional module installation files are available at $modulePath.
+} catch {
+  Write-Error "**** aborting"
+  exit 0
+}
 
 # basic feature questions
-
 $installIis = IisIsNotInstalled
 if ($installIis) {
   $installIis   = PromptForChoice 'IIS Setup' 'Do you want to install IIS and its features?' $choices 0
 }
-
 $urlRewrite   = PromptForChoice 'URL Rewrite Rules' 'Do you want to setup the URL rewrite rules?' $choices 0
 $terminateSsl = PromptForChoice 'Terminate SSL on IIS' 'Only if you use HTTPS from Browser to IIS! Do you want to terminate SSL on IIS to communicate from IIS to Axon Ivy Engine with HTTP instead of HTTPS?' $choices 0
 $setupSso     = PromptForChoice 'Setup SSO' 'Do you want to enable SSO?' $choices 0
 
 # details of the installation - IIS web site and Ivy Engine URL.
-
 $defaultSite = "Default Web Site"
 $path        = "iis:\sites"
 $sitename    = Read-Default "IIS Ivy Website Name" "What is the name of the IIS Website that will serve Ivy?" "${defaultSite}"
@@ -323,25 +342,8 @@ $site        = "$path\$sitename"
 
 $ivyEngineUrl = Read-Default "Ivy Engine URL" "What is your Ivy Engine URL?" "http://localhost:8080"
 
-if ($downloadFromInternet) {  
-  # download the modules
-  $allOk = downloadModule "Application Request Router (ARR)" "requestRouter_amd64.msi" "https://download.microsoft.com/download/E/9/8/E9849D6A-020E-47E4-9FD0-A023E99B54EB/requestRouter_amd64.msi"
-  $allOk = $allOk -and (downloadModule "URL Rewrite" "rewrite_amd64_en-US.msi" "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi")
-  $allOk = $allOk -and (downloadModule "ISAPI Rewrite" "ISAPI_Rewrite3_0112_Lite_x64.msi" "https://www.helicontech.com/download/isapi_rewrite/ISAPI_Rewrite3_0112_Lite_x64.msi")
-
-  if ( -not $allOk ) {
-    Write-Error ""
-    Write-Error "Cannot download all modules. Please provide the missing files at ${modulePath}, or try again."
-    Write-Error "**** aborting"
-    exit 0
-  }
-}
-
-# if we get here, then all additional module installation files are available at $modulePath.
-
 
 # start the installation and configuration
-
 Write-Information "*"
 Write-Information "* starting installation and setup *"
 Write-Information "*"
