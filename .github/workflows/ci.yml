@@ -27,6 +27,7 @@ jobs:
           # Execute the PowerShell script
           ls
           ./scripts/iis-proxy-setup.ps1
+          cat scripts/*.log
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
