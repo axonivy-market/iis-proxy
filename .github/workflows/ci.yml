@@ -14,4 +14,23 @@ permissions:
 
 jobs:
   build:
-    uses: axonivy-market/github-workflows/.github/workflows/ci.yml@v6
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run installer (fetching modules)
+        shell: pwsh
+        run: |
+          ./scripts/iis-proxy-setup.ps1
+          cat scripts/*.log
+        env:
+          IIS_MODULES_DOWNLOAD: 'true'  # force download of modules for CI
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-logs
+          path: scripts/*.log
