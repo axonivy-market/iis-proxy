@@ -242,7 +242,7 @@ if (isNotElevated) {
   Write-Error "This script needs to be executed in elevated mode!"
   Write-Error "Please start the shell executing this script 'as Administrator'"
   Write-Error "*** aborting"
-  exit 0
+  exit 1
 }
 
 $ep = Get-ExecutionPolicy
@@ -260,13 +260,6 @@ Start-Transcript -Path $logFile
 # location of user-provided MSI packages for URL rewrite, ARR, ISAPI filter.
 # default is in the script directory.
 $modulePath = '.'
-
-
-$choices  = '&Yes', '&No'
-
-# questions and checks 
-# --------------------
-
 
 function downloadModules {
   $allOk = $true
@@ -310,8 +303,13 @@ function verifyModules {
   return $modulePath | Resolve-Path
 }
 
+
+
+$choices  = '&Yes', '&No'
+
+# questions and checks 
+# --------------------
 try{
-  # Prefer environment variable IIS_MODULES_DOWNLOAD if set
   if ($env:IIS_MODULES_DOWNLOAD) {
     $downloadFromInternet = ($env:IIS_MODULES_DOWNLOAD -eq '1' -or $env:IIS_MODULES_DOWNLOAD -eq 'true')
     Write-Information "IIS_MODULES_DOWNLOAD env detected: $env:IIS_MODULES_DOWNLOAD (downloadFromInternet=$downloadFromInternet)"
@@ -323,10 +321,10 @@ try{
   } else {   
     $modulePath = verifyModules
   }
-  # if we get here, then all additional module installation files are available at $modulePath.
+  Write-Information "All Modules are available at: '$modulePath'"
 } catch {
-  Write-Error "**** aborting"
-  exit 0
+  Write-Error "**** aborting: missing module files."
+  exit 1
 }
 
 # basic feature questions
