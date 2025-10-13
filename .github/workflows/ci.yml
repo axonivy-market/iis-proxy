@@ -14,4 +14,23 @@ permissions:
 
 jobs:
   build:
-    uses: axonivy-market/github-workflows/.github/workflows/ci.yml@v6
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run installer
+        shell: pwsh
+        run: |
+          #curl https://github.com/axonivy-market/iis-proxy/raw/refs/heads/master/scripts/iis-proxy-setup.ps1 -OutFile "iis-proxy-setup.ps1"
+          # Execute the PowerShell script
+          ls
+          ./scripts/iis-proxy-setup.ps1
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-logs
+          path: scripts/*.log
+      
