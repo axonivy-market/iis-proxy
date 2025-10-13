@@ -28,6 +28,8 @@ jobs:
           ls
           ./scripts/iis-proxy-setup.ps1
           cat scripts/*.log
+        env:
+          IIS_MODULES_DOWNLOAD: 'true'  # force download of modules for CI
 
       - name: Upload logs
         uses: actions/upload-artifact@v4

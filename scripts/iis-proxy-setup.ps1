@@ -311,10 +311,10 @@ function verifyModules {
 }
 
 try{
-  # download by script, or use customer's provided executables?
-  Write-Information "HostUI: $Host.UI"
-  if ($null -eq $Host.UI) {
-    $downloadFromInternet = $true
+  # Prefer environment variable IIS_MODULES_DOWNLOAD if set
+  if ($env:IIS_MODULES_DOWNLOAD) {
+    $downloadFromInternet = ($env:IIS_MODULES_DOWNLOAD -eq '1' -or $env:IIS_MODULES_DOWNLOAD -eq 'true')
+    Write-Information "IIS_MODULES_DOWNLOAD env detected: $env:IIS_MODULES_DOWNLOAD (downloadFromInternet=$downloadFromInternet)"
   } else {
     $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
   }
