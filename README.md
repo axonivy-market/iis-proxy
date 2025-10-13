@@ -9,7 +9,7 @@ Scripts to configure an IIS webserver as reverse proxy for an Axon Ivy Engine: [
 
 1. Download the IIS proxy installer script [iis-proxy-setup.ps1](https://github.com/axonivy-market/iis-proxy/raw/refs/heads/master/scripts/iis-proxy-setup.ps1) onto the host where the Axon Ivy Engine will run.
 2. Right click on the file and pick `Run with PowerShell`. Run this script in privileged mode `as Administrator`.
-3. The first time when you execute this script, you may be asked for a Execution Policy Change so that this script can be executed. You need to answer this question with `[A] Yes to All.
+3. The first time when you execute this script, you may be asked for a Execution Policy Change so that this script can be executed. You need to answer this question with `[A] Yes to All`.
 
 > [!NOTE]  
 > This script works best with a freshly installed IIS. If IIS or any of its modules are already installed, the script may fail to run or some modules might not be installed correctly. In that case, please refer to the documentation [reverse-proxy/IIS] for manual installation.
