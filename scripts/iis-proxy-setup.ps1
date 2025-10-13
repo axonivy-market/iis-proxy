@@ -282,7 +282,12 @@ function downloadModules {
 
 function provideModules {
   # download by script, or use customer's provided executables?
-  $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
+  if ($null -eq $Host.UI) {
+    $downloadFromInternet = $true
+  } else {
+    $choices  = '&Yes', '&No'
+    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
+  }
 
   if ($downloadFromInternet) {
     downloadModules
