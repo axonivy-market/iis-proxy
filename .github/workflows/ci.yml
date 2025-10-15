@@ -23,10 +23,12 @@ jobs:
       - name: Run installer (fetching modules)
         shell: pwsh
         run: |
+          Get-WindowsFeature -name web-*
           ./scripts/iis-proxy-setup.ps1
+          Get-WindowsFeature -name web-*
           cat scripts/*.log
         env:
-          IIS_MODULES_DOWNLOAD: 'true'  # force download of modules for CI
+          AUTO_CONFIRM: 'true'  # say yes to all prompts
 
       - name: Upload logs
         if: always()

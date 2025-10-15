@@ -12,6 +12,10 @@ function Read-Default($title, $text, $defaultValue) {
 }
 
 function PromptForChoice( $title, $question, $choices, $defaultValue) {
+  if ($autoConfirm) {
+    Write-Information "Auto-confirming : $title"
+    return $true
+  }
   return ($Host.UI.PromptForChoice($title, $question, $choices, $defaultValue) -eq 0)
 }
 
@@ -19,42 +23,76 @@ function isNotElevated() {
   return (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
 }
 
-function IisIsNotInstalled() {
-  if (((Get-WindowsFeature Web-Server).InstallState -eq "Installed") `
-    -and ((Get-WindowsFeature Web-Filtering).InstallState -eq "Installed") `
-    -and ((Get-WindowsFeature Web-Basic-Auth).InstallState -eq "Installed") `
-    -and ((Get-WindowsFeature Web-Windows-Auth).InstallState -eq "Installed") `
-    -and ((Get-WindowsFeature Web-ISAPI-Ext).InstallState -eq "Installed") `
-    -and ((Get-WindowsFeature Web-ISAPI-Filter).InstallState -eq "Installed") `
-    -and ((Get-WindowsFeature Web-WebSockets).InstallState -eq "Installed") `
-  ) {
-    Write-Information " "
-    Write-Information "IIS is installed."
-    return $false
-  } 
-  else {
-    $pendingReboot = $false
-    if (((Get-WindowsFeature Web-Server).InstallState -ne "Available") `
-      -or ((Get-WindowsFeature Web-Filtering).InstallState -ne "Available") `
-      -or ((Get-WindowsFeature Web-Basic-Auth).InstallState -ne "Available") `
-      -or ((Get-WindowsFeature Web-Windows-Auth).InstallState -ne "Available") `
-      -or ((Get-WindowsFeature Web-ISAPI-Ext).InstallState -ne "Available") `
-      -or ((Get-WindowsFeature Web-ISAPI-Filter).InstallState -ne "Available") `
-      -or ((Get-WindowsFeature Web-WebSockets).InstallState -ne "Available") `
-    ) {
-      $pendingReboot = $true
+function isFeatureInstalled( [string] $name) {
+  $state = (Get-WindowsFeature -Name $name).InstallState
+  if ($state -ne "Installed" -and $state -ne "Available") {
+    Write-Error "Feature $name is in state $state - a reboot might be required to complete a pending installation or removal."
+  }
+  return ($state -eq "Installed")
+}
+
+function detectMissingIISfeatures() {
+  $iisFeatures = @(
+    "Web-Server",         # IIS
+    "Web-Filtering",      # Request Filtering
+    "Web-Basic-Auth",     # Basic Authentication
+    "Web-Windows-Auth",   # Windows Authentication
+    "Web-ISAPI-Ext",      # ISAPI Extensions
+    "Web-ISAPI-Filter",   # ISAPI Filters
+    "Web-WebSockets"      # Web Sockets
+  )
+
+  $missing = @()
+  foreach ($feature in $iisFeatures) {
+    if (-not (isFeatureInstalled $feature)) {
+      $missing += $feature
     }
-      Write-Information "IIS is not installed."
-      if ($pendingReboot) {
-        Write-Error "Some IIS Modules need a reboot to complete installation or removal. Please reboot and restart this script."
-        Get-WindowsFeature -name web-* |where-object { $_.installstate -match "UninstallPending"}
-        $ErrorActionPreference = 'SilentlyContinue'
-        exit 0
-      }
-      return $true
+  }
+  return $missing
+}
+
+function enableIISfeatures() {
+  Write-Information "Enabling IIS Features"
+  # FYI: "-Online" means that the features are taken from the running Windows system instead of from a Windows installation image.
+  # so, no online access to Microsoft's download sites is required.
+
+  # IIS Base
+  Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole
+  Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServer
+
+  # SSO
+  Enable-WindowsOptionalFeature -Online -FeatureName IIS-WindowsAuthentication
+  Enable-WindowsOptionalFeature -Online -FeatureName IIS-BasicAuthentication
+
+  # required for Ivy process viewer
+  Install-WindowsFeature -name Web-WebSockets
+
+  # required for Helicontech ISAPI filter - SSO 
+  Enable-WindowsOptionalFeature -Online -FeatureName IIS-ISAPIExtensions
+  Enable-WindowsOptionalFeature -Online -FeatureName IIS-ISAPIFilter
+}
+
+function provideIISfeatures() {
+  $requiredFeatures = detectMissingIISfeatures
+  if ($requiredFeatures.Count -eq 0) {
+    Write-Information "All required IIS features are installed."
+    return;
+  }
+
+  Write-Information "The following required IIS features are not installed: $($requiredFeatures -join ', ')"
+  if (PromptForChoice 'IIS Feature Installation' 'Do you want to install the missing IIS features now?' '&Yes', '&No' 0) {
+    enableIISfeatures
+    $requiredFeatures = detectMissingIISfeatures
+    if ($requiredFeatures.Count -gt 0) {
+      Write-Error "The following required IIS features are still missing after installation: $($requiredFeatures -join ', ')"
+      exit 1
+    }
+  } else {
+    Write-Error "Cannot continue without required IIS features. Please install them first."
+    exit 1
   }
 }
-  
+
 function downloadModule( [string] $name, [string] $file, [string] $url) {
   Write-Information "Downloading module ${name}" 
   $file = Join-Path $modulePath $file
@@ -72,27 +110,6 @@ function installModule( [string] $name, [string] $file, [string] $logFile = $($l
   Start-Process "msiexec.exe" -Argumentlist "/i $file /quiet /l* $infoFile AcceptEULA=Yes" -wait
   # check if execution has been successful
   return (Test-Path -Path $infoFile -PathType Leaf)
-}
-
-function enableIISFeatures() {
-  Write-Information "Enabling IIS Features"
-  # FYI: "-Online" means that the features are taken from the running Windows system instead of from a Windows installation image.
-  # so, no online access to Microsoft's download sites is required.
-  
-  # IIS Base
-  Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole
-  Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServer
-
-  # SSO
-  Enable-WindowsOptionalFeature -Online -FeatureName IIS-WindowsAuthentication
-  Enable-WindowsOptionalFeature -Online -FeatureName IIS-BasicAuthentication
-
-  # required for Ivy process viewer
-  Install-WindowsFeature -name Web-WebSockets
-
-  # required for Helicontech ISAPI filter - SSO 
-  Enable-WindowsOptionalFeature -Online -FeatureName IIS-ISAPIExtensions
-  Enable-WindowsOptionalFeature -Online -FeatureName IIS-ISAPIFilter
 }
 
 function enableProxy {
@@ -257,6 +274,11 @@ $logFile = "${scriptPath}/${scriptName}.${fileDate}.log"
 
 Start-Transcript -Path $logFile
 
+$autoConfirm = $false
+if ($env:AUTO_CONFIRM) {
+  $autoConfirm = ($env:AUTO_CONFIRM -eq '1' -or $env:AUTO_CONFIRM -eq 'true')
+}
+
 # location of user-provided MSI packages for URL rewrite, ARR, ISAPI filter.
 # default is in the script directory.
 $modulePath = '.'
@@ -301,35 +323,29 @@ function verifyModules {
   return $modulePath | Resolve-Path
 }
 
+function provideModules() {
+  try{
+    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?', '&Yes', '&No' 0
+    if ($downloadFromInternet) {
+      $modulePath = downloadModules
+    } else {   
+      $modulePath = verifyModules
+    }
+    Write-Information "All Modules are available at: '$modulePath'"
+  } catch {
+    Write-Error "**** aborting: missing module files."
+    exit 1
+  }
+}
 
-
-$choices  = '&Yes', '&No'
+$choices  = @('&Yes', '&No')
 
 # questions and checks 
 # --------------------
-try{
-  if ($env:IIS_MODULES_DOWNLOAD) {
-    $downloadFromInternet = ($env:IIS_MODULES_DOWNLOAD -eq '1' -or $env:IIS_MODULES_DOWNLOAD -eq 'true')
-    Write-Information "IIS_MODULES_DOWNLOAD env detected: $env:IIS_MODULES_DOWNLOAD (downloadFromInternet=$downloadFromInternet)"
-  } else {
-    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
-  }
-  if ($downloadFromInternet) {
-    $modulePath = downloadModules
-  } else {   
-    $modulePath = verifyModules
-  }
-  Write-Information "All Modules are available at: '$modulePath'"
-} catch {
-  Write-Error "**** aborting: missing module files."
-  exit 1
-}
+provideIISfeatures
+provideModules
 
 # basic feature questions
-$installIis = IisIsNotInstalled
-if ($installIis) {
-  $installIis   = PromptForChoice 'IIS Setup' 'Do you want to install IIS and its features?' $choices 0
-}
 $urlRewrite   = PromptForChoice 'URL Rewrite Rules' 'Do you want to setup the URL rewrite rules?' $choices 0
 $terminateSsl = PromptForChoice 'Terminate SSL on IIS' 'Only if you use HTTPS from Browser to IIS! Do you want to terminate SSL on IIS to communicate from IIS to Axon Ivy Engine with HTTP instead of HTTPS?' $choices 0
 $setupSso     = PromptForChoice 'Setup SSO' 'Do you want to enable SSO?' $choices 0
@@ -348,16 +364,14 @@ Write-Information "*"
 Write-Information "* starting installation and setup *"
 Write-Information "*"
 
-if ($installIis) {
-  enableIISFeatures
-  $ok = installModule "Application Request Router (ARR)" "requestRouter_amd64.msi" 
-  $ok = $ok -and (installModule "URL Rewrite" "rewrite_amd64_en-US.msi")
-  if (-not $ok) {
-    Write-Error "Cannot install Application Request Router and/or URL Rewrite - aborting"
-    exit 1
-  }
-  enableProxy
+$ok = installModule "Application Request Router (ARR)" "requestRouter_amd64.msi" 
+$ok = $ok -and (installModule "URL Rewrite" "rewrite_amd64_en-US.msi")
+if (-not $ok) {
+  Write-Error "Cannot install Application Request Router and/or URL Rewrite - aborting"
+  exit 1
 }
+enableProxy
+
 
 if ($urlRewrite) {  
   installUrlRewriteRules
