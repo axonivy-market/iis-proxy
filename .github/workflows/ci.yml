@@ -12,9 +12,18 @@ permissions:
   checks: write
   pull-requests: write
 
+
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [2022, 2025]
+        include:
+          - platform: 2022
+            runner: windows-2022
+          - platform: 2025
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout repository
@@ -34,5 +43,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: script-logs
+          name: script-logs-${{ matrix.runner }}
           path: scripts/*.log
