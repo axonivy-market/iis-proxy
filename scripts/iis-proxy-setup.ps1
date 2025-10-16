@@ -2,7 +2,11 @@ Set-ExecutionPolicy Bypass -Scope Process
 # standard filter routes all requests arriving at the IIS Ivy website to the engine.
 $filterName = 'ivy-route-all'
 $filterRoot = "system.webServer/rewrite/rules/rule[@name='$filterName']"
+$choices = '&Yes', '&No'
 
+# location of user-provided MSI packages for URL rewrite, ARR, ISAPI filter.
+# default is in the script directory.
+$modulePath = '.'
 
 function Read-Default($title, $text, $defaultValue) { 
   Write-Information " "
@@ -80,7 +84,7 @@ function provideIISfeatures() {
   }
 
   Write-Information "The following required IIS features are not installed: $($requiredFeatures -join ', ')"
-  if (PromptForChoice 'IIS Feature Installation' 'Do you want to install the missing IIS features now?' '&Yes', '&No' 0) {
+  if (PromptForChoice 'IIS Feature Installation' 'Do you want to install the missing IIS features now?' $choices 0) {
     enableIISfeatures
     $requiredFeatures = detectMissingIISfeatures
     if ($requiredFeatures.Count -gt 0) {
@@ -93,6 +97,16 @@ function provideIISfeatures() {
   }
 }
 
+function readInstalledModules(){
+  Import-Module WebAdministration
+  $globalModules = Get-WebGlobalModule
+  $moduleNames = @()
+  foreach ($module in $globalModules) {
+    $moduleNames += $module.Name
+  }
+  return $moduleNames
+}
+
 function downloadModule( [string] $name, [string] $file, [string] $url) {
   Write-Information "Downloading module ${name}" 
   $file = Join-Path $modulePath $file
@@ -101,15 +115,84 @@ function downloadModule( [string] $name, [string] $file, [string] $url) {
   return Test-Path -Path $file -PathType Leaf
 }
 
-function installModule( [string] $name, [string] $file, [string] $logFile = $($logFile)) {
-  $file = Join-Path $modulePath $file
-  $infoFile = "${file}.${filedate}.log"
-  Write-Information "Installing module ${name} (check results in ${infoFile})"
-
+function installModule( [string] $name, [string] $file) {
+  $file = Join-Path $modulePath $file | Resolve-Path
+  if ( -not (Test-Path -Path $file -PathType Leaf)) {
+    Write-Error "Module installation file not found: $file"
+    return $false
+  }
   # because of date in log file we do not need to delete existing logs.
-  Start-Process "msiexec.exe" -Argumentlist "/i $file /quiet /l* $infoFile AcceptEULA=Yes" -wait
+  $infoFile = "${file}.${filedate}.log"
+  Write-Information "Installing module ${name} ${file} (check results in ${infoFile})"
+  
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = "msiexec.exe"
+  $startInfo.Arguments = "/i `"$file`" /quiet /l* `"$infoFile`" AcceptEULA=Yes"
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $proc = New-Object System.Diagnostics.Process
+  $proc.StartInfo = $startInfo
+  $proc.Start() | Out-Null
+  $stdout = $proc.StandardOutput.ReadToEnd()
+  $stderr = $proc.StandardError.ReadToEnd()
+  $proc.WaitForExit()
   # check if execution has been successful
+  if ($proc.ExitCode -ne 0) {
+    Write-Error "Module installation ${name} failed with exit code ${proc.ExitCode}"
+    if ($stdout) { Write-Error "Standard Output: $stdout" }
+    if ($stderr) { Write-Error "Standard Error: $stderr" }
+  }
   return (Test-Path -Path $infoFile -PathType Leaf)
+}
+
+
+function moduleExists( [string] $moduleFile) {
+  return (Test-Path -Path (Join-Path "$modulePath" "$moduleFile") -PathType Leaf)
+}
+
+function provideModules() {
+  $requiredModules = @(
+    @{ Name = "ApplicationRequestRouting"; File = "requestRouter_amd64.msi"; Url = "https://download.microsoft.com/download/E/9/8/E9849D6A-020E-47E4-9FD0-A023E99B54EB/requestRouter_amd64.msi" },
+    @{ Name = "RewriteModule"; File = "rewrite_amd64_en-US.msi"; Url = "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi" },
+    @{ Name = "ISAPI Rewrite"; File = "ISAPI_Rewrite3_0112_Lite_x64.msi"; Url = "https://www.helicontech.com/download/isapi_rewrite/ISAPI_Rewrite3_0112_Lite_x64.msi" }
+  )
+
+  $installedModules = readInstalledModules
+  Write-Information "Present IIS modules: $($installedModules -join ', ')"
+
+  $missingModules = @()
+  foreach ($module in $requiredModules) {
+    if ($installedModules -contains $module.Name) {
+      Write-Information "[x] $($module.Name) module is already installed."
+    }
+    else {
+      $missingModules += $module
+    }
+  }
+
+  $downloadFromInternet = $false
+  foreach ($module in $missingModules) {
+    Write-Information "Setting up $($module.Name)."
+    if ( ! (moduleExists $module.File)) {
+      if ( -not $downloadFromInternet) {
+        $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
+        if (-not $downloadFromInternet) {
+          Write-Error "Internet download neglected please provide the modules manually."
+          foreach ($module in $missingModules) {
+            Write-Error "[ ] Required module: $($module.Name) - file: $($module.File)"
+          }
+          exit 1
+        }
+      }
+      downloadModule $module.Name $module.File $module.Url
+    }
+    installModule $module.Name $module.File 
+  }
+
+  $installedModules = readInstalledModules
+  Write-Information "Updated IIS Modules: $($installedModules -join ', ')"
 }
 
 function enableProxy {
@@ -206,13 +289,11 @@ function enableSSO {
 # sets the currently logged in user in http header 'X-Forwarded-User'
 function installISAPIRewrite {
   Write-Information "Setting up ISAPI Rewrite"
-  if (installModule "ISAPI Rewrite" "ISAPI_Rewrite3_0112_Lite_x64.msi") {
-    $configFile = 'C:\Program Files\Helicon\ISAPI_Rewrite3\httpd.conf'
-    if (Test-Path -Path $configFile -PathType Leaf) {
-      Write-Information "- Configure ISAPI Rewrite"
-      Set-Content -Path $configFile -Value 'RewriteHeader X-Forwarded-User: .* %{LOGON_USER}'
-      return $true
-    }
+  $configFile = 'C:\Program Files\Helicon\ISAPI_Rewrite3\httpd.conf'
+  if (Test-Path -Path $configFile -PathType Leaf) {
+    Write-Information "- Configure ISAPI Rewrite"
+    Set-Content -Path $configFile -Value 'RewriteHeader X-Forwarded-User: .* %{LOGON_USER}'
+    return $true
   }
   return $false
 }
@@ -279,76 +360,8 @@ if ($env:AUTO_CONFIRM) {
   $autoConfirm = ($env:AUTO_CONFIRM -eq '1' -or $env:AUTO_CONFIRM -eq 'true')
 }
 
-# location of user-provided MSI packages for URL rewrite, ARR, ISAPI filter.
-# default is in the script directory.
-$modulePath = '.'
-
-function downloadModules {
-  $allOk = $true
-  $allOk = downloadModule "Application Request Router (ARR)" "requestRouter_amd64.msi" "https://download.microsoft.com/download/E/9/8/E9849D6A-020E-47E4-9FD0-A023E99B54EB/requestRouter_amd64.msi"
-  $allOk = $allOk -and (downloadModule "URL Rewrite" "rewrite_amd64_en-US.msi" "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi")
-  $allOk = $allOk -and (downloadModule "ISAPI Rewrite" "ISAPI_Rewrite3_0112_Lite_x64.msi" "https://www.helicontech.com/download/isapi_rewrite/ISAPI_Rewrite3_0112_Lite_x64.msi")
-  if ( -not $allOk ) {
-    Write-Error "Cannot download all modules. Please provide the missing files at ${modulePath}, or try again."
-    throw "Module download error"
-  }
-  return $modulePath | Resolve-Path
-}
-
-function verifyModules {
-  Do {
-    $modulePath = Read-Default "IIS Modules Source Path" "Enter the path to the IIS modules you have downloaded yourself" "$modulePath"
-  } Until ((Test-Path $modulePath -PathType Container))
-
-  $modulePath = $modulePath | Resolve-Path
-
-  Write-Information "ModulePath: '$modulePath'"
-  # check if files are available already - else display an instruction message and terminate.
-  $moduleFiles = (
-      "requestRouter_amd64.msi",
-      "rewrite_amd64_en-US.msi",
-      "ISAPI_Rewrite3_0112_Lite_x64.msi"
-  )
-  $missing=@()
-  foreach( $moduleFile in $moduleFiles) {
-    if ( ! (Test-Path -Path (Join-Path "$modulePath" "$moduleFile") -PathType Leaf)) {
-      Write-Error "${moduleFile} not found"
-      $missing += $moduleFile
-    }
-  }
-  if ( $missing.Count -gt 0 ) {
-    Write-Error "Please provide the missing files, or have the script download them."
-    throw "Missing module files"
-  }
-  return $modulePath | Resolve-Path
-}
-
-function provideModules() {
-  try{
-    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?', '&Yes', '&No' 0
-    if ($downloadFromInternet) {
-      $modulePath = downloadModules
-    } else {   
-      $modulePath = verifyModules
-    }
-    Write-Information "All Modules are available at: '$modulePath'"
-  } catch {
-    Write-Error "**** aborting: missing module files."
-    exit 1
-  }
-}
-
-$choices  = @('&Yes', '&No')
-
-# questions and checks 
+# questions and checks
 # --------------------
-provideIISfeatures
-provideModules
-
-# basic feature questions
-$urlRewrite   = PromptForChoice 'URL Rewrite Rules' 'Do you want to setup the URL rewrite rules?' $choices 0
-$terminateSsl = PromptForChoice 'Terminate SSL on IIS' 'Only if you use HTTPS from Browser to IIS! Do you want to terminate SSL on IIS to communicate from IIS to Axon Ivy Engine with HTTP instead of HTTPS?' $choices 0
-$setupSso     = PromptForChoice 'Setup SSO' 'Do you want to enable SSO?' $choices 0
 
 # details of the installation - IIS web site and Ivy Engine URL.
 $defaultSite = "Default Web Site"
@@ -359,30 +372,29 @@ $site        = "$path\$sitename"
 $ivyEngineUrl = Read-Default "Ivy Engine URL" "What is your Ivy Engine URL?" "http://localhost:8080"
 
 
+provideIISfeatures
+provideModules
+enableProxy
+
 # start the installation and configuration
 Write-Information "*"
 Write-Information "* starting installation and setup *"
 Write-Information "*"
 
-$ok = installModule "Application Request Router (ARR)" "requestRouter_amd64.msi" 
-$ok = $ok -and (installModule "URL Rewrite" "rewrite_amd64_en-US.msi")
-if (-not $ok) {
-  Write-Error "Cannot install Application Request Router and/or URL Rewrite - aborting"
-  exit 1
-}
-enableProxy
-
-
+# basic feature questions
+$urlRewrite   = PromptForChoice 'URL Rewrite Rules' 'Do you want to setup the URL rewrite rules?' $choices 0
 if ($urlRewrite) {  
   installUrlRewriteRules
   allowWebSocketCommunication
   Write-Warning "Please change the standard search RE '.*' to allow only the contexts you want to be reachable from the outside"
 }
+$terminateSsl = PromptForChoice 'Terminate SSL on IIS' 'Only if you use HTTPS from Browser to IIS! Do you want to terminate SSL on IIS to communicate from IIS to Axon Ivy Engine with HTTP instead of HTTPS?' $choices 0
 if ($terminateSsl) {
   terminateSSL
   Write-Warning "Please enable HTTPS on IIS manually and import certificates, if required"
-
+  
 }
+$setupSso     = PromptForChoice 'Setup SSO' 'Do you want to enable SSO?' $choices 0
 if ($setupSso) {
   installISAPIRewrite
   enableSSO

@@ -32,10 +32,11 @@ jobs:
       - name: Run installer (fetching modules)
         shell: pwsh
         run: |
-          Get-WindowsFeature -name web-*
+          #Get-WindowsFeature -name web-*
+          #& "$env:SystemRoot\System32\inetsrv\appcmd.exe" list modules
+
           ./scripts/iis-proxy-setup.ps1
-          Get-WindowsFeature -name web-*
-          cat scripts/*.log
+          & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list modules
         env:
           AUTO_CONFIRM: 'true'  # say yes to all prompts
 
@@ -44,4 +45,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: script-logs-${{ matrix.runner }}
-          path: scripts/*.log
+          path: '**/*.log'
