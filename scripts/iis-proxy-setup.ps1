@@ -98,7 +98,6 @@ function provideIISfeatures() {
 }
 
 function readInstalledModules(){
-  Import-Module WebAdministration
   $globalModules = Get-WebGlobalModule
   $moduleNames = @()
   foreach ($module in $globalModules) {
@@ -377,6 +376,8 @@ $ivyEngineUrl = Read-Default "Ivy Engine URL" "What is your Ivy Engine URL?" "ht
 
 
 provideIISfeatures
+
+Import-Module WebAdministration
 provideModules
 enableProxy
 
@@ -384,6 +385,18 @@ enableProxy
 Write-Information "*"
 Write-Information "* starting installation and setup *"
 Write-Information "*"
+
+# Ensure IIS site exists
+Write-Information "Collecting existing IIS sites"
+& "$env:SystemRoot\System32\inetsrv\appcmd.exe" list site
+Write-Information "Checking for presence of default site ${sitename}"
+$siteExists = Get-Website | Where-Object { $_.Name -eq $sitename }
+if (-not $siteExists) {
+    Write-Host "IIS site '$sitename' does not exist. Creating it now..."
+    New-Item -ItemType Directory -Path $physicalPath -Force | Out-Null
+    "<configuration></configuration>" | Out-File -Encoding UTF8 -FilePath (Join-Path $physicalPath "web.config")
+    New-Website -Name $sitename -Port 80 -PhysicalPath $physicalPath -Force
+}
 
 # basic feature questions
 $urlRewrite   = PromptForChoice 'URL Rewrite Rules' 'Do you want to setup the URL rewrite rules?' $choices 0
