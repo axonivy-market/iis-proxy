@@ -1,10 +1,12 @@
 # IIS Proxy Scripts
 
-[![CI Build](https://github.com/axonivy-market/iis-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/axonivy-market/iis-proxy/actions/workflows/ci.yml)
 ![2025](https://img.shields.io/badge/Windows-Server_2025-blue)
 ![2022](https://img.shields.io/badge/Windows-Server_2022-green)
+![2019](https://img.shields.io/badge/Untested::Windows-Server_2019-yellow)
 
 Scripts to configure an IIS webserver as reverse proxy for an Axon Ivy Engine: [reverse-proxy/IIS].
+
+[![CI Build](https://github.com/axonivy-market/iis-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/axonivy-market/iis-proxy/actions/workflows/ci.yml)
 
 ## Installation
 
@@ -15,9 +17,6 @@ Scripts to configure an IIS webserver as reverse proxy for an Axon Ivy Engine: [
 
 > [!NOTE]  
 > This script works best with a freshly installed IIS. If IIS or any of its modules are already installed, the script may fail to run or some modules might not be installed correctly. In that case, please refer to the documentation [reverse-proxy/IIS] for manual installation.
-
-> [!WARNING]  
-> Windows Server 2025: This script does not support IIS on Windows Server 2025. For manual installation, please consult the official documentation..
 
 ### Requirements
 
@@ -35,7 +34,7 @@ Scripts to configure an IIS webserver as reverse proxy for an Axon Ivy Engine: [
 
 ### Module download restriction
 
-If your IIS server cannot access external links, you need to download the modules externally and upload them to your IIS server. Please check the download links for the modules in our script by searching for `downloadModule`. Once you have downloaded them, upload them onto the IIS server in a directory of your choice. Using the directory where you store our script is the most simple solution. Then, start the script and select No to the question titled `IIS Module Source`, and enter the path where you stored the modules in question `IIS Modules Source Path`.
+If your IIS server cannot access external links, you need to download the modules externally and upload them to your IIS server. Please check the download links for the modules in our script by searching for `$requiredModules`. Once you have downloaded them, upload them onto the IIS server to the directory where you store our script. Then, start the script again.
 
 ### Execution policy
 
