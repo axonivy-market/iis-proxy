@@ -101,14 +101,35 @@ function downloadModule( [string] $name, [string] $file, [string] $url) {
   return Test-Path -Path $file -PathType Leaf
 }
 
-function installModule( [string] $name, [string] $file, [string] $logFile = $($logFile)) {
-  $file = Join-Path $modulePath $file
-  $infoFile = "${file}.${filedate}.log"
-  Write-Information "Installing module ${name} (check results in ${infoFile})"
-
+function installModule( [string] $name, [string] $file) {
+  $file = Join-Path $modulePath $file | Resolve-Path
+  if ( ! (Test-Path -Path $file -PathType Leaf)) {
+    Write-Error "Module installation file not found: $file"
+    return $false
+  }
   # because of date in log file we do not need to delete existing logs.
-  Start-Process "msiexec.exe" -Argumentlist "/i $file /quiet /l* $infoFile AcceptEULA=Yes" -wait
+  $infoFile = "${file}.${filedate}.log"
+  Write-Information "Installing module ${name} ${file} (check results in ${infoFile})"
+  
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = "msiexec.exe"
+  $startInfo.Arguments = "/i `"$file`" /quiet /l* `"$infoFile`" AcceptEULA=Yes"
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $proc = New-Object System.Diagnostics.Process
+  $proc.StartInfo = $startInfo
+  $proc.Start() | Out-Null
+  $stdout = $proc.StandardOutput.ReadToEnd()
+  $stderr = $proc.StandardError.ReadToEnd()
+  $proc.WaitForExit()
   # check if execution has been successful
+  if ($proc.ExitCode -ne 0) {
+    Write-Error "Module installation ${name} failed with exit code ${proc.ExitCode}"
+    if ($stdout) { Write-Error "Standard Output: $stdout" }
+    if ($stderr) { Write-Error "Standard Error: $stderr" }
+  }
   return (Test-Path -Path $infoFile -PathType Leaf)
 }
 
