@@ -98,7 +98,6 @@ function provideIISfeatures() {
 }
 
 function readInstalledModules(){
-  Import-Module WebAdministration
   $globalModules = Get-WebGlobalModule
   $moduleNames = @()
   foreach ($module in $globalModules) {
@@ -324,6 +323,40 @@ function unlockSectionGroup($group) {
   }
 }
 
+function siteExists([string]$siteName) {
+  $sites = & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list site
+  foreach ($line in $sites) {
+    if ($line -match "SITE `"$siteName`"") {
+      return $true
+    }
+  }
+  return $false
+}
+
+function createSiteIfMissing([string]$siteName) {
+  if (-not (siteExists $siteName)) {
+    $create = Read-Default "Missing site" "Site '$siteName' does not exist. Creating it now?" $true
+    if (-not $create) {
+      Write-Error "Cannot continue without IIS site $siteName. Please create it first or select an existing site."
+      exit 1
+    }
+    if ($env:SITE_PORT) {
+      $port = $env:SITE_PORT
+    } else {
+      $port = Read-Default "Site Port" "Please provide the port for the new site" "80"
+    }
+    $physicalPath = Read-Default "Physical Path" "Please choose the physical path for the new site" "$env:SystemRoot\inetpub\$siteName"
+    
+    Write-Information "Ensuring directory '$physicalPath' exists and is writable by IIS_IUSRS"
+    if (-not (Test-Path $physicalPath)) {
+      New-Item -ItemType Directory -Path $physicalPath -Force | Out-Null
+    }
+    Write-Information "Creating IIS site '$siteName' with physical path '$physicalPath'"
+    New-Website -Name "$siteName" -Port $port -PhysicalPath "$physicalPath" -Force
+  }
+  & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list site
+}
+
 ##################
 # IIS Setup Main #
 ##################
@@ -370,13 +403,22 @@ if ($env:AUTO_CONFIRM) {
 # details of the installation - IIS web site and Ivy Engine URL.
 $defaultSite = "Default Web Site"
 $path        = "iis:\sites"
-$sitename    = Read-Default "IIS Ivy Website Name" "What is the name of the IIS Website that will serve Ivy?" "${defaultSite}"
+
+if ($env:SITE_NAME) {
+  $sitename = $env:SITE_NAME
+} else {
+  $sitename = Read-Default "IIS Ivy Website Name" "What is the name of the IIS Website that will serve Ivy?" "${defaultSite}"
+}
+
 $site        = "$path\$sitename"
 
 $ivyEngineUrl = Read-Default "Ivy Engine URL" "What is your Ivy Engine URL?" "http://localhost:8080"
 
 
 provideIISfeatures
+Import-Module WebAdministration # load after IIS is installed
+createSiteIfMissing $sitename
+
 provideModules
 enableProxy
 

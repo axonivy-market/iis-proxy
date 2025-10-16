@@ -1,6 +1,10 @@
 function runIvyEngine( [string] $link ) {
-  curl -L $link -o engine.zip
-  Expand-Archive -Path 'engine.zip' -DestinationPath 'engine'
+  if (Test-Path 'engine') {
+    Write-Output "Engine directory already exists, skipping download and extraction."
+  } else {
+    curl -L $link -o engine.zip
+    Expand-Archive -Path 'engine.zip' -DestinationPath 'engine'
+  }
   Start-Process -FilePath './engine/bin/AxonIvyEngine.exe' -NoNewWindow
 }
 

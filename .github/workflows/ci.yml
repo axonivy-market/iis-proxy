@@ -57,6 +57,25 @@ jobs:
         env:
           AUTO_CONFIRM: 'true'  # say yes to all prompts
 
+      - name: Run custom site installer
+        shell: pwsh
+        run: |
+          . ./.github/workflows/e2e-test.ps1  # load e2e test functions
+          runIvyEngine https://developer.axonivy.com/permalink/nightly/axonivy-engine-windows.zip
+
+          ./scripts/iis-proxy-setup.ps1
+          & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list sites
+
+          Write-Output "Calling engine directly"
+          call http://localhost:8080/api/engine/info
+
+          Write-Output "Calling engine via IIS Proxy"
+          call http://localhost:${{env.SITE_PORT}}/api/me
+        env:
+          AUTO_CONFIRM: 'true'  # say yes to all prompts
+          SITE_NAME: 'Ivy IIS Test Site ${{ matrix.runner }}' # test custom, non-default site name
+          SITE_PORT: 8888
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
