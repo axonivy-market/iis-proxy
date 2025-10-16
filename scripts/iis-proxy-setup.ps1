@@ -342,6 +342,10 @@ if (isNotElevated) {
   Write-Error "*** aborting"
   exit 1
 }
+if (-not ([Environment]::Is64BitProcess)) {
+  Write-Warning "You are using the 32-bit version of PowerShell. Please start this script in 64-bit version to continue."
+  exit 1
+}
 
 $ep = Get-ExecutionPolicy
 write-information "Your effective Execution Policy is ${ep}."
