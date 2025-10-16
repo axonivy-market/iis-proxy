@@ -2,7 +2,7 @@ Set-ExecutionPolicy Bypass -Scope Process
 # standard filter routes all requests arriving at the IIS Ivy website to the engine.
 $filterName = 'ivy-route-all'
 $filterRoot = "system.webServer/rewrite/rules/rule[@name='$filterName']"
-
+$choices = '&Yes', '&No'
 
 function Read-Default($title, $text, $defaultValue) { 
   Write-Information " "
@@ -80,7 +80,7 @@ function provideIISfeatures() {
   }
 
   Write-Information "The following required IIS features are not installed: $($requiredFeatures -join ', ')"
-  if (PromptForChoice 'IIS Feature Installation' 'Do you want to install the missing IIS features now?' '&Yes', '&No' 0) {
+  if (PromptForChoice 'IIS Feature Installation' 'Do you want to install the missing IIS features now?' $choices 0) {
     enableIISfeatures
     $requiredFeatures = detectMissingIISfeatures
     if ($requiredFeatures.Count -gt 0) {
@@ -325,7 +325,7 @@ function verifyModules {
 
 function provideModules() {
   try{
-    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?', '&Yes', '&No' 0
+    $downloadFromInternet = PromptForChoice 'IIS Module Source' 'Do you want this script to download the required IIS modules from the internet?' $choices 0
     if ($downloadFromInternet) {
       $modulePath = downloadModules
     } else {   
@@ -338,7 +338,6 @@ function provideModules() {
   }
 }
 
-$choices  = @('&Yes', '&No')
 
 # questions and checks 
 # --------------------
