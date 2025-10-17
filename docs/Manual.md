@@ -3,7 +3,7 @@
 In case the automated script doesn't work for you. 
 Here's what the script does and must be done manually:
 
-## Basic IIS Setup
+## Basic IIS Setup 🌐️
 
 install all required features including IIS itself, as well
 as the URL Rewrite and Application Request Routing (ARR) modules. Furthermore,
@@ -20,7 +20,7 @@ that case.
 
 ![overview](img/iis-overview.png)
   
-## URL Rewrite Rules
+## URL Rewrite Rules 🚦️
 
 configure the rules for URL rewriting. It will add a
 new rule `ivy-route-all` to the `Default Website`. This will
@@ -46,7 +46,7 @@ setting `HTTP_SEC_WEBSOCKET_EXTENSIONS` on the `ivy-route-all`
 rewrite rule to empty.
 
 
-## Terminate SSL on IIS
+## Terminate SSL on IIS 🔚️
 
 ensure that IIS serves the Axon Ivy Engine over HTTPS
 but the connection between IIS and Axon Ivy Engine is HTTP only. 
@@ -61,7 +61,7 @@ this information to generate correct URLs.
 
 ![port](img/iis-terminate-ssl-port.png)
 
-## Setup SSO
+## Setup SSO 🪪️
 
 Configure [Single Sign-on]. This will
 enable Windows Authentication and will add a HTTP request header
@@ -79,8 +79,8 @@ Axon Ivy Engine exclusively via IIS [Single Sign-on].
 ![auth](img/iis-authentication.png)
 
 
-## Serve with HTTPS
-is not covered by this script. You need to set this up
+# Serve with HTTPS 🔐️
+Is not covered by this script. You need to set this up
 manually. You need to install an SSL certificate. You can do this on the server
 level in section `Server Certificate`. Import your SSL certificate
 there. Alternatively, you can generate a self-signed certificate to try out
