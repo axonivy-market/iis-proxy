@@ -10,8 +10,8 @@ function call( [string] $url) {
     $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('admin:admin'))
     $headers = @{ Authorization = "Basic $base64Auth" }
     $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers $headers -SkipCertificateCheck
-    Write-Output "Status: $($response.StatusCode)"
-    Write-Host "$response.Content" -ForegroundColor Green
+    Write-Host "::notice::Status $($response.StatusCode)"
+    Write-Output "::warning:: $response.Content"
     if ($response.StatusCode -ne 200) {
       Write-Error "Unexpected status code: $($response.StatusCode)"
       exit 1
