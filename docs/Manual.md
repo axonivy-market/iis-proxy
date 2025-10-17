@@ -5,7 +5,7 @@ Here's what the script does and must be done manually:
 
 ## Basic IIS Setup 🌐️
 
-install all required features including IIS itself, as well
+Install all required features including IIS itself, as well
 as the URL Rewrite and Application Request Routing (ARR) modules. Furthermore,
 it will enable the reverse proxy capabilities.
 
@@ -22,7 +22,7 @@ that case.
   
 ## URL Rewrite Rules 🚦️
 
-configure the rules for URL rewriting. It will add a
+Configure the rules for URL rewriting. It will add a
 new rule `ivy-route-all` to the `Default Website`. This will
 route all traffic to the Axon Ivy Engine which runs on the same host at
 `http://localhost:8080`. You may adjust this rule according to your
@@ -48,7 +48,7 @@ rewrite rule to empty.
 
 ## Terminate SSL on IIS 🔚️
 
-ensure that IIS serves the Axon Ivy Engine over HTTPS
+Ensure that IIS serves the Axon Ivy Engine over HTTPS
 but the connection between IIS and Axon Ivy Engine is HTTP only. 
 We highly recommend to [Terminate SSL].
 This will create a new `IIS Server Variable` called
