@@ -9,12 +9,17 @@ function call( [string] $url) {
   try {
     $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('admin:admin'))
     $headers = @{ Authorization = "Basic $base64Auth" }
-    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers $headers
+    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers $headers -SkipCertificateCheck
     Write-Output "Status: $($response.StatusCode)"
     Write-Host "$response.Content" -ForegroundColor Green
+    if ($response.StatusCode -ne 200) {
+      Write-Error "Unexpected status code: $($response.StatusCode)"
+      exit 1
+    }
   } catch {
     Write-Output "Status: $($_.Exception.Response.StatusCode.value__)"
-    Write-Output $_.Exception.Message
+    Write-Error $_.Exception.Message
+    exit 1
   }
 }
 
@@ -39,4 +44,17 @@ function enableIvyYamlSSO() {
   Add-Content -Path $ivyYaml -Value "  default:"
   Add-Content -Path $ivyYaml -Value "    SSO:"
   Add-Content -Path $ivyYaml -Value "      enabled: true"
+}
+
+function enableSelfSignedSSL() {
+  Write-Output "Enabling HTTPS on IIS Proxy (self-signed)"
+  $cert = New-SelfSignedCertificate -DnsName "localhost" -CertStoreLocation "cert:\LocalMachine\My"
+  $thumb = $cert.Thumbprint
+  
+  Import-Module WebAdministration
+  $siteName = "Default Web Site"
+  if (-not (Get-WebBinding -Name $siteName -Protocol "https")) {
+    New-WebBinding -Name $siteName -Protocol https -Port 443 -IPAddress "*" -HostHeader ""
+  }
+  netsh http add sslcert ipport=0.0.0.0:443 certhash=$thumb appid='{00112233-4455-6677-8899-AABBCCDDEEFF}'
 }
