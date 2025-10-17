@@ -35,8 +35,25 @@ jobs:
           #Get-WindowsFeature -name web-*
           #& "$env:SystemRoot\System32\inetsrv\appcmd.exe" list modules
 
+          . ./.github/workflows/e2e-test.ps1  # load e2e test functions
+          runIvyEngine https://developer.axonivy.com/permalink/nightly/axonivy-engine-windows.zip
+
           ./scripts/iis-proxy-setup.ps1
           & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list modules
+          & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list sites
+
+          Write-Output "Calling engine directly"
+          call http://localhost:8080/api/engine/info
+
+          createIISUser admin admin
+          enableIvyYamlSSO
+
+          Write-Output "Calling engine via IIS Proxy"
+          call http://localhost/api/me
+
+          enableSelfSignedSSL
+          Write-Output "Calling engine via IIS Proxy using HTTPS"
+          call https://localhost/api/me
         env:
           AUTO_CONFIRM: 'true'  # say yes to all prompts
 
