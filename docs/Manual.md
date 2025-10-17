@@ -78,10 +78,9 @@ Axon Ivy Engine exclusively via IIS [Single Sign-on].
 
 ![auth](img/iis-authentication.png)
 
-
-# Serve with HTTPS 🔐️
+# Serve with HTTPS
 Is not covered by this script. You need to set this up
-manually. You need to install an SSL certificate. You can do this on the server
+manually. You need to install an SSL certificate 🔐️. You can do this on the server
 level in section `Server Certificate`. Import your SSL certificate
 there. Alternatively, you can generate a self-signed certificate to try out
 HTTPS.  
