@@ -51,6 +51,11 @@ jobs:
           Write-Output "Calling engine via IIS Proxy"
           call http://localhost/api/engine/info
 
+          Write-Output "Enabling HTTPS on IIS Proxy (self-signed)"
+          $cert = New-SelfSignedCertificate -DnsName "localhost" -CertStoreLocation "cert:\LocalMachine\My"
+          $thumb = $cert.Thumbprint
+          netsh http add sslcert ipport=0.0.0.0:443 certhash=$thumb appid='{00112233-4455-6677-8899-AABBCCDDEEFF}'
+
           Write-Output "Calling engine via IIS Proxy using HTTPS"
           call https://localhost/api/engine/info  
         env:
