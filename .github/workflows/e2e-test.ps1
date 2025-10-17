@@ -11,7 +11,7 @@ function call( [string] $url) {
     $headers = @{ Authorization = "Basic $base64Auth" }
     $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers $headers
     Write-Output "Status: $($response.StatusCode)"
-    Write-Output $response.Content
+    Write-Host "$response.Content" -ForegroundColor Green
   } catch {
     Write-Output "Status: $($_.Exception.Response.StatusCode.value__)"
     Write-Output $_.Exception.Message
