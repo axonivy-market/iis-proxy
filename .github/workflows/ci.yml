@@ -35,33 +35,18 @@ jobs:
           #Get-WindowsFeature -name web-*
           #& "$env:SystemRoot\System32\inetsrv\appcmd.exe" list modules
 
-          curl -L https://developer.axonivy.com/permalink/nightly/axonivy-engine-windows.zip -o engine.zip
-          Expand-Archive -Path 'engine.zip' -DestinationPath 'engine'
-          Start-Process -FilePath './engine/bin/AxonIvyEngine.exe' -NoNewWindow
-          Write-Information "Calling engine directly"
-          $result = curl http://localhost:8080/api/engine/info
-          Write-Output $result
+          . ./.github/workflows/e2e-test.ps1  # load e2e test functions
+          runIvyEngine https://developer.axonivy.com/permalink/nightly/axonivy-engine-windows.zip
 
           ./scripts/iis-proxy-setup.ps1
           & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list modules
           & "$env:SystemRoot\System32\inetsrv\appcmd.exe" list sites
 
-          function call( [string] $url) {
-            Write-Output "Calling $url"
-            try {
-              $secpasswd = ConvertTo-SecureString 'admin' -AsPlainText -Force
-              $cred = New-Object System.Management.Automation.PSCredential ('admin', $secpasswd)
-              $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Credential $cred
-              Write-Output "Status: $($response.StatusCode)"
-              Write-Output $response.Content
-            } catch {
-              Write-Output "Status: $($_.Exception.Response.StatusCode.value__)"
-              Write-Output $_.Exception.Message
-            }
-          }
-
           Write-Output "Calling engine directly"
           call http://localhost:8080/api/engine/info
+
+          createIISUser admin admin
+          enableIvyYamlSSO
 
           Write-Output "Calling engine via IIS Proxy"
           call http://localhost/api/engine/info
