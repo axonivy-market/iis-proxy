@@ -20,8 +20,17 @@ function call( [string] $url) {
 
 function createIISUser( [string] $username, [string] $password ) {
   Write-Output "Creating user $username/$password for IIS SSO"
-  net accounts /minpwlen:3
+  allowSimplePasswords
   net user $username $password /add
+}
+
+function allowSimplePasswords() {
+  net accounts /minpwlen:3
+  # Disable password complexity
+  secedit /export /cfg C:\secpol.cfg
+  (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1','PasswordComplexity = 0' | Set-Content C:\secpol.cfg
+  secedit /configure /db secedit.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
+  Remove-Item C:\secpol.cfg
 }
 
 function enableIvyYamlSSO() {
