@@ -27,7 +27,7 @@ new rule `ivy-route-all` to the `Default Website`. This will
 route all traffic to the Axon Ivy Engine which runs on the same host at
 `http://localhost:8080`. You may adjust this rule according to your
 needs when your Axon Ivy Engine runs on a different host, and/or on a different
-port. We recommend to :ref:`limit the access <reverse-proxy-secure-path>` to
+port. We recommend to limit the access [Path] to
 specific applications by only routing the applications that are available to
 your users. You can do that by changing the standard pattern `.*` of the
 rule to `YOUR-APP.*` e.g., `demo-portal.*`. e.g.,
@@ -49,8 +49,8 @@ rewrite rule to empty.
 ## Terminate SSL on IIS
 
 ensure that IIS serves the Axon Ivy Engine over HTTPS
-but the connection between IIS and Axon Ivy Engine is HTTP only. We highly
-recommend to :ref:`setup your IIS this way <reverse-proxy-terminate-ssl>`.
+but the connection between IIS and Axon Ivy Engine is HTTP only. 
+We highly recommend to [Terminate SSL].
 This will create a new `IIS Server Variable` called
 `HTTP_X-Forwarded-Proto` that will be set to `https` on the
 `ivy-route-all` rewrite rule. This will send the HTTP header
@@ -59,22 +59,22 @@ this information to generate correct URLs.
 
 ![variable](img/iis-terminate-ssl-server-variable.png)
 
-![portl](img/iis-terminate-ssl-port.png)
+![port](img/iis-terminate-ssl-port.png)
 
 ## Setup SSO
 
-will configure :ref:`Single Sign-on <single-sign-on>`. This will
+Configure [Single Sign-on]. This will
 enable Windows Authentication and will add a HTTP request header
 `X-Forwarded-User` with the current user to the request that will be
-forwarded to the Axon Ivy Engine. You will also need to :ref:`activate Single
-Sign-on <single-sign-on>` on the Axon Ivy Engine in `ivy.yaml`. The script will also
+forwarded to the Axon Ivy Engine. You will also need to activate [Single Sign-on]
+ on the Axon Ivy Engine in `ivy.yaml`. The script will also
 enable Basic Authentication which is required for REST clients like the
 Axon Ivy Mobile App to call the protected REST Services provided by the
 Axon Ivy Engine. If you don't need this you can manually disable it.
 
 > [!WARNING]  
 > If you enable SSO, you need to make sure that your users can access the
-Axon Ivy Engine :ref:`exclusively via IIS <single-sign-on>`.
+Axon Ivy Engine exclusively via IIS [Single Sign-on].
 
 ![auth](img/iis-authentication.png)
 
@@ -94,3 +94,9 @@ earlier. We strongly recommend to remove the `http` binding. This prevents your
 Axon Ivy Engine being accessible via HTTP through IIS.
 
 ![bind](img/iis-https-binding.png)
+
+[Single Sign-on]: https://developer.axonivy.com/doc/dev/en/engine-guide/integration/single-sign-on/index.html
+
+[Path]: https://developer.axonivy.com/doc/dev/en/engine-guide/integration/reverse-proxy/secure-setup/path.html
+
+[Terminate SSL]: https://developer.axonivy.com/doc/dev/en/engine-guide/integration/reverse-proxy/secure-setup/protocol.html#reverse-proxy-terminate-ssl
