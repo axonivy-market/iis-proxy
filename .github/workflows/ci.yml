@@ -49,7 +49,7 @@ jobs:
           enableIvyYamlSSO
 
           Write-Output "Calling engine via IIS Proxy"
-          call http://localhost/api/me
+          call http://localhost/api/notAResource
 
           enableSelfSignedSSL
           Write-Output "Calling engine via IIS Proxy using HTTPS"
