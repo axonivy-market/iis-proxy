@@ -1,12 +1,18 @@
 # IIS Proxy Scripts
 
-![2025](https://img.shields.io/badge/Windows-Server_2025-blue)
-![2022](https://img.shields.io/badge/Windows-Server_2022-green)
-![2019](https://img.shields.io/badge/Untested::Windows-Server_2019-yellow)
-
 Scripts to configure an IIS webserver as [reverse-proxy] for an Axon Ivy Engine.
 
 [![CI Build](https://github.com/axonivy-market/iis-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/axonivy-market/iis-proxy/actions/workflows/ci.yml)
+
+Supports:
+
+![LE](https://img.shields.io/badge/AxonIvy-LE-blue)
+![12](https://img.shields.io/badge/AxonIvy-LTS12-green)
+![10](https://img.shields.io/badge/AxonIvy-LTS10-yellow)
+
+![2025](https://img.shields.io/badge/Windows-Server_2025-blue)
+![2022](https://img.shields.io/badge/Windows-Server_2022-green)
+![2019](https://img.shields.io/badge/Untested::Windows-Server_2019-yellow)
 
 ## Installation ▶️
 
