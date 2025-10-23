@@ -1,11 +1,32 @@
-function runIvyEngine( [string] $link ) {
-  if (Test-Path 'engine') {
-    Write-Output "Engine directory already exists, skipping download and extraction."
+function runIvyEngine( [string] $link, [string] $engineDir ) {
+  if (-not $engineDir) {
+    $engineDir = 'engine'
+  }
+  if (Test-Path $engineDir) {
+    Write-Output "Engine directory '$engineDir' already exists, skipping download and extraction."
   } else {
     curl -L $link -o engine.zip
-    Expand-Archive -Path 'engine.zip' -DestinationPath 'engine'
+    Expand-Archive -Path 'engine.zip' -DestinationPath $engineDir
   }
-  Start-Process -FilePath './engine/bin/AxonIvyEngine.exe' -NoNewWindow
+  bootEngine (Join-Path $engineDir 'bin/AxonIvyEngine.exe')
+}
+
+function bootEngine( [string] $engineBin ) {
+  $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $processInfo.FileName = $engineBin
+  $processInfo.RedirectStandardOutput = $true
+  $processInfo.UseShellExecute = $false
+  $processInfo.CreateNoWindow = $true
+  $process = New-Object System.Diagnostics.Process
+  $process.StartInfo = $processInfo
+  $process.Start() | Out-Null
+  Write-Output "Waiting for engine to be ready..."
+  while ($true) {
+    $line = $process.StandardOutput.ReadLine()
+    if ($null -eq $line) { Start-Sleep -Milliseconds 100; continue }
+    Write-Output $line
+    if ($line -match 'ready to serve') { break }
+  }
 }
 
 function call( [string] $url) {
