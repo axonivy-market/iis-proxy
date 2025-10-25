@@ -1,4 +1,4 @@
-Set-ExecutionPolicy Bypass -Scope Process
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 # standard filter routes all requests arriving at the IIS Ivy website to the engine.
 $filterName = 'ivy-route-all'
 $filterRoot = "system.webServer/rewrite/rules/rule[@name='$filterName']"
