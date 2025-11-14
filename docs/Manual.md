@@ -78,6 +78,11 @@ Axon Ivy Engine exclusively via IIS [Single Sign-on].
 
 ![auth](img/iis-authentication.png)
 
+## Setup WebSockets
+
+That some features (e.g. the process viewer) work, you may consider to enable WebSocket in your IIS. 
+https://learn.microsoft.com/en-us/iis/configuration/system.webserver/websocket
+
 # Serve with HTTPS
 Is not covered by this script. You need to set this up
 manually. You need to install an SSL certificate 🔐️. You can do this on the server
