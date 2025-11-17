@@ -39,8 +39,8 @@ define a separate, internal-only website for access to the engine cockpit.
 
 Some features in Axon Ivy, such as the Process Viewer, require WebSocket communication. 
 Therefore, we automatically install the WebSocket feature. 
-IIS ARR cannot negotiate WebSocket compression, so we must always set the HTTP header SEC_WEBSOCKET_EXTENSIONS to empty.
-To achieve this, we add HTTP_SEC_WEBSOCKET_EXTENSIONS to the IIS Server Variables and set it to empty in the ivy-route-all rewrite rule.
+IIS ARR cannot negotiate WebSocket compression, so we must always set the HTTP header `SEC_WEBSOCKET_EXTENSIONS` to empty.
+To achieve this, we add `HTTP_SEC_WEBSOCKET_EXTENSIONS` to the IIS Server Variables and set it to empty in the ivy-route-all rewrite rule.
 Please review and update this configuration if you use multiple rewrite or redirect rules for your Engine. 
 Update your IIS web.config settings (typically located in C:\inetpub\wwwroot) if you need to add this variable for other rewrite rules.
 
